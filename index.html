@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0614">
+<title>Ellie's Halloween Chase: Isometric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Creepster&family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #b05cff; --orange: #ff7b00; --ink: #0b0614;
+    --vh: 1vh;
+    --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px);
+  }
+  @supports (height: 1dvh) { :root { --vh: 1dvh; } }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden; background: radial-gradient(ellipse at 50% 20%, #241238, #0b0614 70%);
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none;
+    font-family: "Baloo 2", "Trebuchet MS", system-ui, sans-serif; color: #fff3e0;
+  }
+  #game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 50%, rgba(5,2,10,0.75)); transition: background 0.4s; }
+  body.hiding #vignette { background: radial-gradient(ellipse at center, transparent 30%, rgba(5,2,10,0.85)); }
+  #outBtn {
+    position: absolute; right: calc(18px + var(--safe-r)); bottom: calc(var(--vh) * 6);
+    width: min(150px, calc(var(--vh) * 36)); height: min(150px, calc(var(--vh) * 36)); border-radius: 50%; padding: 0;
+    border: 0.8vh solid rgba(255,255,255,0.8); color: #0e2a0a;
+    background: radial-gradient(circle at 38% 32%, #d4ffb8, #44c42c 60%, #17660f); box-shadow: 0 0 26px rgba(93,255,58,0.7);
+    display: none; flex-direction: column; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  #outBtn svg { width: 46%; height: 40%; }
+  #outBtn span { font-weight: 800; font-size: clamp(12px, 4vh, 19px); line-height: 1; letter-spacing: 0.04em; }
+  body.playing.hiding #outBtn { display: flex; }
+  body.playing.hiding #powerBtn { display: none; }
+  #outBtn.bump { animation: bump 0.3s; }
+  #flash { position: absolute; inset: 0; pointer-events: none; background: #dfe6ff; opacity: 0; }
+  #bubbles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .bubble {
+    position: absolute; left: 0; top: 0; white-space: nowrap; transform-origin: 50% 100%;
+    padding: 0.25em 0.75em; border-radius: 1em; background: #2a1238; border: 3px solid var(--purple);
+    font: 800 clamp(15px, 4.4vh, 24px) "Baloo 2", sans-serif;
+  }
+  .bubble.trunch { background: #3a0d0d; border-color: #ff4a3a; color: #ffe0d6; font-family: "Creepster", sans-serif; font-weight: 400; letter-spacing: 0.05em; font-size: clamp(17px, 5.4vh, 30px); }
+
+  /* HUD */
+  .hud { display: none; }
+  body.playing .hud { display: flex; }
+  #top { position: absolute; top: 8px; left: calc(10px + var(--safe-l)); right: calc(10px + var(--safe-r)); align-items: center; gap: 10px; pointer-events: none; }
+  #top button { pointer-events: auto; }
+  .ibtn { width: 44px; height: 44px; border-radius: 14px; border: 2px solid rgba(176,92,255,0.6); background: rgba(20,8,32,0.7); color: #e2c8ff; display: flex; align-items: center; justify-content: center; padding: 0; }
+  .ibtn svg { width: 24px; height: 24px; }
+  .mute .x { display: none; } .mute.off .x { display: inline; } .mute.off .w { display: none; }
+  #levelName { font-size: clamp(12px, 3.6vh, 18px); opacity: 0.8; text-shadow: 0 1px 3px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #books { display: flex; gap: 4px; margin-left: auto; margin-right: auto; padding: 4px 10px; border-radius: 16px; background: rgba(20,8,32,0.6); }
+  .book svg { width: clamp(26px, 8vh, 38px); height: clamp(26px, 8vh, 38px); fill: rgba(255,255,255,0.12); stroke: rgba(255,255,255,0.45); stroke-width: 1.2; }
+  .book.got svg { fill: #ffd23f; stroke: #fff6c2; filter: drop-shadow(0 0 6px #ffd23f); }
+  #danger { width: clamp(44px, 13vh, 60px); height: clamp(44px, 13vh, 60px); border-radius: 50%; background: rgba(20,8,32,0.6); border: 2px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; transition: background 0.3s; }
+  #danger svg { width: 80%; height: 80%; }
+  #danger .eyes { fill: #555; }
+  #danger.on { background: rgba(140,10,10,0.8); border-color: #ff4a3a; animation: shake 0.3s infinite; }
+  #danger.on .eyes { fill: #ff2a2a; }
+  #danger .hid { display: none; }
+  #danger.hidden { background: rgba(20,80,40,0.75); border-color: #7cff9a; animation: none; }
+  #danger.hidden .face { display: none; } #danger.hidden .hid { display: inline; }
+  #danger.stunned { background: rgba(120,90,10,0.8); border-color: #ffe14d; animation: none; }
+  @keyframes shake { 25% { transform: translate(-2px, 1px) rotate(-4deg); } 75% { transform: translate(2px, -1px) rotate(4deg); } }
+
+  #banner {
+    position: absolute; left: 50%; bottom: calc(var(--vh) * 5); transform: translate(-50%, 10px); opacity: 0; transition: opacity 0.3s, transform 0.3s;
+    padding: 0.35em 1em; border-radius: 18px; background: rgba(20,8,32,0.82); border: 2px solid var(--orange);
+    font-size: clamp(15px, 5vh, 26px); font-weight: 800; text-align: center; max-width: 44vw; pointer-events: none;
+  }
+  #banner.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* touch controls */
+  #joyBase, #joyKnob { position: absolute; left: 0; top: 0; border-radius: 50%; pointer-events: none; display: none; }
+  body.playing #joyBase, body.playing #joyKnob { display: block; }
+  #joyBase { width: min(140px, calc(var(--vh) * 34)); height: min(140px, calc(var(--vh) * 34)); border: 3px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); }
+  #joyKnob { width: min(66px, calc(var(--vh) * 16)); height: min(66px, calc(var(--vh) * 16)); background: radial-gradient(circle at 40% 35%, #e9d6ff, #8a4ad6); box-shadow: 0 0 14px rgba(176,92,255,0.7); opacity: 0.55; }
+  #joyBase.active { border-color: rgba(255,255,255,0.45); }
+  #joyKnob.active { opacity: 0.95; }
+  #powerBtn {
+    position: absolute; right: calc(18px + var(--safe-r)); bottom: calc(var(--vh) * 6);
+    width: min(140px, calc(var(--vh) * 34)); height: min(140px, calc(var(--vh) * 34)); border-radius: 50%; padding: 0; border: 0;
+    background: conic-gradient(#c084ff calc(var(--p, 1) * 360deg), rgba(255,255,255,0.12) 0);
+    display: none; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;
+    --p: 1;
+  }
+  body.playing #powerBtn { display: flex; }
+  #powerBtn .core {
+    width: 86%; height: 86%; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 38% 32%, #e2b8ff, #6b24b0 60%, #2a0a4a); filter: grayscale(0.7) brightness(0.7); transition: filter 0.2s;
+  }
+  #powerBtn.ready .core { filter: none; box-shadow: 0 0 22px #b05cff; animation: glow 1.4s ease-in-out infinite; }
+  #powerBtn svg { width: 56%; height: 44%; }
+  #powerBtn span { font-weight: 800; font-size: clamp(11px, 3.6vh, 17px); letter-spacing: 0.08em; margin-top: -2px; }
+  #powerBtn.bump { animation: bump 0.3s; }
+  @keyframes glow { 50% { box-shadow: 0 0 34px #d9a6ff; } }
+  @keyframes bump { 30% { transform: translateX(-6px); } 60% { transform: translateX(6px); } }
+
+  /* screens */
+  .screen {
+    position: absolute; inset: 0; z-index: 20; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    background: radial-gradient(ellipse at center, rgba(20,8,32,0.55), rgba(8,3,14,0.92)); padding: 4vh 8vw; box-sizing: border-box;
+  }
+  .screen.show { display: flex; }
+  h1 { margin: 0; font-family: "Creepster", sans-serif; font-weight: 400; color: var(--orange); font-size: min(15vh, 9vw); letter-spacing: 0.04em; line-height: 1; text-shadow: 0 0 2vh rgba(255,123,0,0.6), 0 0.6vh 0 #3a0a4a; }
+  h2 { margin: 0 0 2vh; font-family: "Creepster", sans-serif; font-weight: 400; color: var(--orange); font-size: min(11vh, 7vw); letter-spacing: 0.04em; }
+  .tag { font-family: "Creepster", sans-serif; color: #c084ff; font-size: min(6vh, 3.8vw); letter-spacing: 0.08em; margin-top: 0.5vh; }
+  .sub { font-size: min(5.4vh, 3.4vw); margin: 1.5vh 0 3vh; opacity: 0.9; }
+  .story { font-size: min(6vh, 3.6vw); max-width: 70vw; line-height: 1.3; margin: 0 0 4vh; }
+  .big {
+    font: 800 min(7vh, 4.4vw) "Baloo 2", sans-serif; color: #10240c; padding: 0.3em 1.4em; border-radius: 999px; border: 0.6vh solid rgba(255,255,255,0.7);
+    background: radial-gradient(circle at 35% 30%, #c9ffa6, #3fbf2a 60%, #17660f); box-shadow: 0 0 4vh rgba(93,255,58,0.6);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .big.alt { background: radial-gradient(circle at 35% 30%, #ffe0b0, #ff8a1a 60%, #a34500); color: #2a1200; box-shadow: 0 0 4vh rgba(255,123,0,0.6); animation: none; }
+  @keyframes pulse { 50% { transform: scale(1.06); } }
+  .row { display: flex; gap: 3vw; align-items: center; justify-content: center; flex-wrap: wrap; }
+  #levels { display: flex; gap: 2vw; margin-top: 3vh; }
+  .lvl { width: min(14vh, 9vw); height: min(14vh, 9vw); border-radius: 50%; font: 800 min(7vh, 4.4vw) "Baloo 2", sans-serif; color: #fff; border: 3px solid var(--purple); background: rgba(60,20,100,0.8); }
+  .lvl:disabled { opacity: 0.3; }
+  .howto { display: flex; gap: 4vw; margin-top: 3vh; font-size: min(4.2vh, 2.6vw); opacity: 0.85; }
+  .howto div { display: flex; align-items: center; gap: 0.5em; }
+  .howto i { display: inline-block; width: 1.6em; height: 1.6em; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #e9d6ff, #8a4ad6); }
+  .howto i.p { background: radial-gradient(circle at 38% 32%, #e2b8ff, #6b24b0 60%, #2a0a4a); box-shadow: 0 0 8px #b05cff; }
+  .howto i.w { border-radius: 30% 30% 45% 45%; background: repeating-linear-gradient(0deg, #a06a34 0 3px, #5a3416 3px 5px); }
+  .credit { position: absolute; bottom: 2vh; font-size: min(3vh, 2vw); opacity: 0.45; }
+  #caught { position: absolute; inset: 0; z-index: 15; display: none; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(120,10,10,0.35), rgba(30,0,0,0.85)); pointer-events: none; }
+  #caught.show { display: flex; animation: fadein 0.25s; }
+  #caught div { font-family: "Creepster", sans-serif; font-size: min(14vh, 9vw); color: #ff6a5a; text-shadow: 0 0 3vh #ff2a2a; text-align: center; line-height: 1.1; }
+  #caught small { display: block; font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 0.4em; color: #fff3e0; text-shadow: none; }
+  @keyframes fadein { from { opacity: 0; } }
+  #rotate { position: absolute; inset: 0; z-index: 50; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 4vh; background: #0b0614; text-align: center; font-size: 6vw; padding: 0 10vw; }
+  body.portrait #rotate { display: flex; }
+  #rotate svg { width: 30vw; height: 30vw; animation: turn 2s ease-in-out infinite; }
+  @keyframes turn { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+  #loading { margin-top: 2vh; color: #ffb347; font-size: min(4vh, 3vw); min-height: 1.4em; }
+  body.ready #loading { visibility: hidden; }
+  body:not(.ready) #playBtn { opacity: 0.4; pointer-events: none; animation: none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="vignette"></div>
+<div id="flash"></div>
+<div id="bubbles"></div>
+
+<div id="top" class="hud">
+  <button class="ibtn" id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg></button>
+  <button class="ibtn mute" id="muteBtn" aria-label="Sound on or off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9 h4 l5 -4 v14 l-5 -4 h-4 z" fill="currentColor"/><path class="w" d="M16 8.5 a5 5 0 0 1 0 7 M18.5 6 a8.5 8.5 0 0 1 0 12"/><path class="x" d="M16 9 l6 6 M22 9 l-6 6"/></svg></button>
+  <div id="levelName"></div>
+  <div id="books"></div>
+  <div id="danger" aria-label="Is Miss Trunchbull after you?">
+    <svg viewBox="0 0 40 40"><g class="face"><path d="M9 14 C9 5 31 5 31 14 V22 C31 32 25 36 20 36 C15 36 9 32 9 22 Z" fill="#d9b48f"/><path d="M8 13 C8 3 32 3 32 13 C29 9 11 9 8 13 Z" fill="#7d7a80"/><circle cx="20" cy="4" r="3.4" fill="#7d7a80"/><path d="M11 16 L18 18 M29 16 L22 18" stroke="#3a2a20" stroke-width="2.4" stroke-linecap="round"/><circle class="eyes" cx="15" cy="20.5" r="1.8"/><circle class="eyes" cx="25" cy="20.5" r="1.8"/><path d="M15 29 Q20 26 25 29" stroke="#5a2a20" stroke-width="2" fill="none" stroke-linecap="round"/></g><g class="hid"><path d="M5 20 Q20 8 35 20 Q20 32 5 20 Z" fill="none" stroke="#c9ffd6" stroke-width="2.4"/><path d="M8 26 L32 14" stroke="#c9ffd6" stroke-width="2.6" stroke-linecap="round"/></g></svg>
+  </div>
+</div>
+<div id="banner"></div>
+<div id="joyBase"></div><div id="joyKnob"></div>
+<button id="powerBtn" aria-label="Use Matilda's power">
+  <div class="core">
+    <svg viewBox="0 0 48 32"><path d="M4 16 Q24 -2 44 16 Q24 34 4 16 Z" fill="#fff" opacity="0.95"/><circle cx="24" cy="16" r="7" fill="#7a2ad6"/><circle cx="24" cy="16" r="3" fill="#1a0630"/><path d="M24 0 V-6 M10 4 L6 -1 M38 4 L42 -1" stroke="#fff" stroke-width="3" stroke-linecap="round" transform="translate(0 4)"/></svg>
+    <span>POWER</span>
+  </div>
+</button>
+
+<button id="outBtn" aria-label="Climb out of the basket">
+  <svg viewBox="0 0 24 20"><path d="M12 1 L22 11 H16 V19 H8 V11 H2 Z" fill="#0e2a0a"/></svg>
+  <span>GET OUT</span>
+</button>
+
+<div id="caught"><div>Caught!<small>Back to the last pumpkin…</small></div></div>
+
+<div class="screen show" id="start">
+  <h1>Ellie's Halloween Chase</h1>
+  <div class="tag">The isometric edition</div>
+  <div class="sub">Help Matilda find her books and escape Miss Trunchbull!</div>
+  <button class="big" id="playBtn">Play</button>
+  <div id="levels"></div>
+  <div class="howto">
+    <div><i></i> Drag on the left to walk</div>
+    <div><i class="p"></i> POWER moves things and stops Miss Trunchbull</div>
+    <div><i class="w"></i> Hide in baskets</div>
+  </div>
+  <div id="loading">Unlocking the school…</div>
+  <div class="credit">An unofficial fan game, made for Ellie. Matilda is by Roald Dahl.</div>
+</div>
+<div class="screen" id="story">
+  <h2 id="storyTitle"></h2>
+  <div class="story" id="storyText"></div>
+  <button class="big" id="goBtn">Let's go!</button>
+</div>
+<div class="screen" id="complete">
+  <h2>You escaped!</h2>
+  <div class="story">Matilda found all the books, and Miss Trunchbull is still stomping about looking for her. But there's more to explore…</div>
+  <button class="big" id="nextBtn">Next level</button>
+</div>
+<div class="screen" id="win">
+  <h1>Hooray, Matilda!</h1>
+  <div class="story">Matilda got every single book back and slipped out of the school. Miss Trunchbull was so cross she stomped all the way home and never came back. Happy Halloween, Ellie!</div>
+  <button class="big alt" id="againBtn">Play again</button>
+</div>
+<div class="screen" id="pause">
+  <h2>Paused</h2>
+  <div class="row">
+    <button class="big" id="resumeBtn">Keep playing</button>
+    <button class="big alt" id="restartBtn">Start level again</button>
+    <button class="big alt" id="menuBtn">Main menu</button>
+  </div>
+  <div class="row" style="margin-top:3vh"><button class="ibtn mute" id="muteBtn2" aria-label="Sound on or off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9 h4 l5 -4 v14 l-5 -4 h-4 z" fill="currentColor"/><path class="w" d="M16 8.5 a5 5 0 0 1 0 7 M18.5 6 a8.5 8.5 0 0 1 0 12"/><path class="x" d="M16 9 l6 6 M22 9 l-6 6"/></svg></button></div>
+</div>
+<div id="rotate">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#ff7b00" stroke-width="1.6"><rect x="7" y="2" width="10" height="20" rx="2"/><circle cx="12" cy="18.5" r="0.8" fill="#ff7b00"/></svg>
+  <div>Turn your phone sideways to play!</div>
+</div>
+
+<script>
+  window.addEventListener('error', (e) => { const l = document.getElementById('loading'); if (l) l.textContent = 'Something went wrong: ' + (e.message || 'error'); });
+  setTimeout(() => { if (!document.body.classList.contains('ready')) document.getElementById('loading').textContent = 'Still loading… this needs the internet the first time.'; }, 12000);
+</script>
+<script type="module" src="src/game.js"></script>
+</body>
+</html>
